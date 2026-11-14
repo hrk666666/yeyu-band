@@ -1,0 +1,200 @@
+<template>
+	<div class="page">
+	  <list class="list">
+		<list-item class="page-title-item" type="title">
+			<text static class="page-title">菜单</text>
+		</list-item>
+		<list-item class="item" @click="routerTo('list')" type="item">
+			<text class="itemtext" static>章节列表</text>
+			<img src="/common/images/enter.png" class="arrow" static />
+		</list-item>
+		<list-item type="item" class="item" @click="routerTo('readPresent')">
+			<text class="itemtext" static>跳转章节</text>
+			<img src="/common/images/enter.png" class="arrow" static/>
+		</list-item>
+		<list-item type="item" class="item" @click="routerTo('readPercent')">
+			<text class="itemtext" static>跳转百分比</text>
+			<img src="/common/images/enter.png" class="arrow" static/>
+		</list-item>
+		<list-item class="item" @click="addBookmark" type="item">
+			<text class="itemtext" static>添加书签</text>
+			<img src="/common/images/enter.png" class="arrow" static />
+		</list-item>
+		<list-item class="item" @click="routerTo('bookmarks')" type="item">
+			<text class="itemtext" static>书签管理</text>
+			<img src="/common/images/enter.png" class="arrow" static />
+		</list-item>
+		<list-item class="item" @click="toggleKeepScreenOnClick" type="item">
+			<text class="itemtext" static>屏幕常亮</text>
+			<img src="{{isKeepScreenOn ? '/common/images/Switch_ON.png' : '/common/images/Switch_OFF.png'}}" class="switch" />
+		</list-item>
+		<list-item type="item" class="item" @click="backToFirst">
+			<text class="itemtext" static>回到开头第一段</text>
+		</list-item>
+		<list-item class="item" @click="routerTo('more')" type="item">
+			<text class="itemtext" static>全局设置</text>
+			<img src="/common/images/enter.png" class="arrow" static />
+		</list-item>
+		<list-item class="item" @click="del" type="item">
+			<text class="itemtext" static>删除书籍</text>
+			<img src="/common/images/enter.png" class="arrow" static />
+		</list-item>
+		<list-item class="item" @click="routerTo('bookinfo')" type="item">
+			<text class="itemtext" static>书籍详情</text>
+			<img src="/common/images/enter.png" class="arrow" static />
+		</list-item>
+		<list-item class="item" @click="routerTo('readingTime')" type="item">
+			<text class="itemtext" static>阅读时长</text>
+			<img src="/common/images/enter.png" class="arrow" static />
+		</list-item>
+		<list-item class="item" @click="exitReader" type="item">
+			<text class="itemtext" static>退出阅读器</text>
+			<img src="/common/images/enter.png" class="arrow" static />
+		</list-item>
+	  </list>
+	  <img static src="/common/images/more2.png" @click="back()" class="header-more"/>
+	</div>
+</template>
+  
+<script>
+import router from '@system.router'
+import prompt from '@system.prompt'
+import bookStorage from '../../utils/bookStorage.js'
+import chapterManager from '../../utils/chapterManager.js'
+
+export default {
+	private: {
+		isKeepScreenOn: false,
+		isProcessingClick: false
+	},
+	protected: {
+		name: ''
+	},
+
+	onShow() {
+		if (globalThis.justJumpedFromChapter || globalThis.justJumpedFromBookmark || globalThis.justJumpedFromPageNumber || globalThis.justJumpedFromPercent) {
+			router.back();
+			return;
+		}
+		if (typeof globalThis.isKeepScreenOn !== 'undefined') {
+			this.isKeepScreenOn = globalThis.isKeepScreenOn;
+		}
+	},
+
+	routerTo(url) {
+		router.push({
+			uri: '/pages/' + url,
+			params: { name: this.name }
+		})
+	},
+
+	del() {
+		router.push({
+			uri: '/pages/confirm',
+			params: {
+				action: 'deleteBook',
+				title: '删除书籍',
+				confirmText: '确认删除吗？',
+				subText: '删除后不可恢复',
+				cPath: 'internal://files/books/' + this.name
+			}
+		});
+	},
+
+	toggleKeepScreenOnClick() {
+		this.isKeepScreenOn = !this.isKeepScreenOn;
+		globalThis.isKeepScreenOn = this.isKeepScreenOn;
+	},
+
+	async addBookmark() {
+		if (this.isProcessingClick) return;
+		this.isProcessingClick = true;
+
+		try {
+			let progress = await bookStorage.get(this.name);
+			if (!progress || progress.chapterIndex === null || progress.chapterIndex === undefined) {
+				prompt.showToast({ message: '无法添加书签，未找到阅读进度' });
+				this.isProcessingClick = false;
+				return;
+			}
+
+			let bookmarks = await bookStorage.getBookmarks(this.name) || [];
+			const chapterIndex = Math.max(0, Math.floor(progress.chapterIndex));
+			let offsetInChapter = Math.max(0, Math.floor(progress.offsetInChapter || 0));
+			if (offsetInChapter % 2 === 1) {
+				offsetInChapter = Math.max(0, offsetInChapter - 1);
+			}
+			const scrollOffset = Math.max(0, Math.floor(progress.scrollOffset || 0));
+
+			const hasDuplicate = bookmarks.some(item => {
+				const itemChapter = Math.max(0, Math.floor(item.chapterIndex || 0));
+				const itemOffset = Math.max(0, Math.floor(item.offsetInChapter || 0));
+				return itemChapter === chapterIndex && Math.abs(itemOffset - offsetInChapter) <= 2;
+			});
+			if (hasDuplicate) {
+				prompt.showToast({ message: '当前位置已有书签' });
+				this.isProcessingClick = false;
+				return;
+			}
+
+			let chapterName = progress.chapterName;
+			if (!chapterName) {
+				const chapter = await chapterManager.getChapterByIndex(this.name, chapterIndex);
+				chapterName = chapter && chapter.name ? chapter.name : `第${chapterIndex + 1}章`;
+			}
+
+			bookmarks.push({
+				chapterIndex: chapterIndex,
+				chapterName: chapterName,
+				offsetInChapter: offsetInChapter,
+				scrollOffset: scrollOffset,
+				time: new Date().getTime(),
+				name: `书签${bookmarks.length + 1}`
+			});
+
+			bookmarks.sort((a, b) => a.chapterIndex - b.chapterIndex || a.offsetInChapter - b.offsetInChapter);
+			
+			await bookStorage.setBookmarks(this.name, bookmarks);
+			prompt.showToast({ message: '添加书签成功' });
+		} catch (e) { 
+			prompt.showToast({ message: '添加书签失败' }); 
+		}
+		
+		this.isProcessingClick = false;
+	},
+
+	async backToFirst() {
+		try {
+			let progress = await bookStorage.get(this.name);
+			if (progress.chapterIndex === null || progress.chapterIndex === undefined) {
+				prompt.showToast({ message: '无法跳转，章节信息错误', duration: 2000 });
+				return;
+			}
+			const currentChapterIndex = progress.chapterIndex;
+			progress.offsetInChapter = 0;
+			progress.scrollOffset = 0;
+			await bookStorage.set(this.name, progress);
+			progress = null;
+			
+			prompt.showToast({ message: '已跳转到第一段', duration: 1500 });
+			globalThis.justJumpedFromPageNumber = true;
+			globalThis.justJumpedChapterIndex = currentChapterIndex;
+			router.back();
+		} catch (e) {
+			prompt.showToast({ message: '跳转失败', duration: 2000 });
+		}
+	},
+
+	exitReader() {
+		router.replace({ uri: '/pages/index' });
+	},
+
+	back() {
+		router.back();
+	}
+}
+</script>
+  
+<style>
+@import '../../common/style.css';
+</style>

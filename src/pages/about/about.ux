@@ -1,0 +1,97 @@
+<template>
+	<div class="page" style="flex-direction: column">
+    <list class="list">
+      <list-item class="page-title-item" type="title">
+        <text static class="page-title">
+          关于
+        </text>
+      </list-item>
+      <list-item type="content" class="item center" style="width: 416px;height: 110px;">
+        <text style="font-size: 38px;font-weight:bold;">页屿</text>
+        <text style="font-size: 38px;font-weight:bold;color: #ffffff99;left: 12px;">{{displayVersion}}</text>
+      </list-item>
+      <list-item style="height: 64px;" class="center" type="title">
+        <text static class="page-title" style="font-size: 38px;color: #ffffff99;">
+          开发者
+        </text>
+      </list-item>
+      <list-item type="content" class="item center" style="width: 416px;height: 110px;flex-direction: column;">
+        <text style="font-size: 38px;font-weight:bold;top: 5px;">@爅峫moye</text>
+      </list-item>
+      <list-item style="height: 64px;" class="center" type="title">
+        <text static class="page-title" style="font-size: 38px;color: #ffffff99;">
+          参与开发的人员
+        </text>
+      </list-item>
+      <list-item type="content" class="item center" style="width: 416px;height: 278px;flex-direction: column;">
+        <text style="font-size: 38px;font-weight:bold;top: 5px;">@乐色桶</text>
+        <text style="font-size: 38px;font-weight:bold;top: 5px;">@GiveMeFive</text>
+        <text style="font-size: 38px;font-weight:bold;top: 5px;">@NEORUAA</text>
+        <text style="font-size: 38px;font-weight:bold;top: 5px;">@无源流沙</text>
+      </list-item>
+      <list-item style="height: 64px;" class="center" type="title">
+        <text static class="page-title" style="font-size: 38px;color: #ffffff99;">
+          官网
+        </text>
+      </list-item>
+      <list-item type="content" class="item center" style="width: 416px;height: 110px;">
+        <text style="font-size: 38px;font-weight:bold;">vb.luoxe.cn</text>
+      </list-item>
+      <list-item style="height: 64px;" class="center" type="title">
+        <text static class="page-title" style="font-size: 38px;color: #ffffff99;">
+          更多资源请访问
+        </text>
+      </list-item>
+      <list-item type="content" class="center" style="width: 100%;height: 40px;">
+        <text style="font-size: 38px;font-weight:bold;">bandbbs.cn</text>
+      </list-item>
+    </list>
+
+	  <img static src="/common/images/about.png" @click="back()" class="header-more"/>
+	</div>
+</template>
+  
+<script>
+  import router from '@system.router'
+  import app from '@system.app' 
+  
+  export default {
+    private: {
+      appVer: '1.0.0',
+      displayVersion: '1.0.0'
+    },
+    
+    onInit() {
+      this.appVer = app.getInfo().versionName;
+      this.parseVersion();
+    },
+    
+    back() {
+      router.back();
+    },
+    
+    parseVersion() {
+      const version = this.appVer;
+      const parts = version.split('.');
+      let mainVersion = '';
+      
+      if (parts.length >= 3) {
+        mainVersion = parts.slice(0, 3).join('.');
+        
+        if (parts.length <= 3 && (parts[2].includes('RW') || parts[2].includes('BAND'))) {
+          mainVersion = mainVersion.replace('RW', '')
+                                   .replace('BAND10', '')
+                                   .replace('BAND', '');
+        }
+      } else {
+        mainVersion = version;
+      }
+      
+      this.displayVersion = mainVersion;
+    }
+  }
+</script>
+  
+<style>
+  @import '../../common/style.css';
+</style>

@@ -1,0 +1,69 @@
+<import name="number" src="../../components/number_choose/number_choose"></import>
+<template>
+  <div class="page" style="flex-direction: column;">
+
+	<div class="preview-item">
+		<text style="font-size: {{fontSize}}px;font-weight: bold;color: white;opacity:{{opacity/100}};text-overflow: ellipsis;">
+			文本预览文本预览文本预览文本预览文本预览文本预览文本预览文本预览文本预览文本预览文本预览文本预览文本预览文本文本预览文本预览文本预览文本预览文本预览文本预览文本预览文本预览文本预览文本预览文本预览文本预览文本预览文本
+		</text>
+	</div>
+	<number style="position: absolute; bottom: 28px; left: 112px;" max.static="50" min.static="5" step.static="1" value="{{fontSize}}" @change="change" name.static="当前字号"></number>
+	
+	<img static src="/common/images/set.png" @click="back()" class="header-more"/>
+	<text static class="header-title">
+		显示字号
+	</text>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import storage from '../../utils/storage.js'
+
+export default {
+  private: {
+	fontSize: 28,
+	opacity: 100
+  },
+  
+  onInit() {
+    storage.get({
+      key: 'EBOOK_FONT',
+      success: (data) => {
+        if (data) {
+          this.fontSize = parseInt(data);
+        }
+      }
+	});
+	
+	storage.get({
+      key: "EBOOK_OPACITY",
+      success: (data) => {
+        if (data) {
+          this.opacity = parseFloat(data);
+        }
+      }
+    });
+  },
+
+  change(e) {
+	this.fontSize = e.detail.value;
+	storage.set({
+		key: 'EBOOK_FONT',
+		value: this.fontSize.toString()
+	});
+  },
+
+  back() {
+	storage.set({
+        key: 'EBOOK_FONT',
+        value: this.fontSize.toString()
+    });
+  	router.back();
+  }
+}
+</script>
+
+<style>
+  @import '../../common/style.css';
+</style>

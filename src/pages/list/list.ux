@@ -1,0 +1,246 @@
+<template>
+  <div class="page">
+    <list class="list">
+      <list-item class="page-title-item" type="title">
+        <text static class="page-title">
+          章节列表
+        </text>
+      </list-item>
+      <list-item for="{{visibleChapters}}" style="height: 135px;" class="item" @click="selectChapter($item)" onlongpress="deleteChapter($item)" type="chapter">
+        <div class="chapter-info">
+            <marquee if="{{chapterListItemMarqueeEnabled}}" class="itemtext {{currentChapterIndex == $item.index ? 'itemtext-current' : ''}}" scrollamount="20" text-offset="20">
+              {{$item.name}}
+            </marquee>
+            <text else class="itemtext {{currentChapterIndex == $item.index ? 'itemtext-current' : ''}}">
+              {{$item.name}}
+            </text>
+            <marquee if="{{chapterListItemMarqueeEnabled}}" class="itemtext2" scrollamount="20" text-offset="20">
+              {{$item.wordCount}} 字
+            </marquee>
+            <text else class="itemtext2">
+              {{$item.wordCount}} 字
+            </text>
+        </div>
+      </list-item>
+      <list-item type="pagination" class="pagination-container" if="{{totalPages > 1}}">
+        <div class="pagination-controls">
+          <img src="/common/images/pre.png" if="{{currentPage > 0}}" @click="prevPage" class="pagination-button"/>
+          <text class="pagination-text">{{currentPage + 1}} / {{totalPages}}</text>
+          <img src="/common/images/next.png" if="{{currentPage < totalPages - 1}}" @click="nextPage" class="pagination-button"/>
+        </div>
+      </list-item>
+    </list>
+    <img static src="/common/images/set.png" @click="back()" class="header-more"/>
+  </div>
+</template>
+
+<script>
+import router from '@system.router';
+import prompt from '@system.prompt';
+import bookStorage from '../../utils/bookStorage.js';
+import chapterManager from '../../utils/chapterManager.js';
+import storage from '../../utils/storage.js';
+
+const PAGE_SIZE = 8;
+
+export default {
+  private: {
+    visibleChapters: [],
+    currentPage: 0,
+    totalPages: 1,
+    totalChapters: 0,
+    currentChapterIndex: -1,
+    loading: false,
+    longPressTriggered: false,
+    longPressTimeout: null,
+    chapterListItemMarqueeEnabled: false
+  },
+  protected: {
+    name: ''
+  },
+  
+  onInit() {
+    storage.get({
+        key: 'EBOOK_CHAPTER_LIST_ITEM_MARQUEE_ENABLED',
+        success: (data) => { this.chapterListItemMarqueeEnabled = data === 'true'; },
+        fail: () => { this.chapterListItemMarqueeEnabled = false; }
+    });
+    this.initChapterList();
+  },
+  
+  onShow() {
+    storage.get({
+        key: 'EBOOK_CHAPTER_LIST_ITEM_MARQUEE_ENABLED',
+        success: (data) => { this.chapterListItemMarqueeEnabled = data === 'true'; }
+    });
+    this.initChapterList();
+  },
+  
+  onDestroy() {
+    if (this.longPressTimeout) {
+      clearTimeout(this.longPressTimeout);
+      this.longPressTimeout = null;
+    }
+    
+    this.visibleChapters = null;
+
+    if (typeof global !== 'undefined' && typeof global.runGC === 'function') {
+      global.runGC();
+    }
+  },
+
+  async initChapterList() {
+    if (this.loading) return;
+    this.loading = true;
+
+    try {
+      const progress = await bookStorage.get(this.name);
+      const chapterIndex = (progress && progress.chapterIndex !== null) ? progress.chapterIndex : -1;
+      this.currentChapterIndex = chapterIndex;
+      
+      const allChapters = await chapterManager.getAllAvailableChapters(this.name);
+      this.totalChapters = allChapters.length;
+      this.totalPages = Math.ceil(this.totalChapters / PAGE_SIZE) || 1;
+
+      let targetPage = 0;
+      if (chapterIndex >= 0) {
+          const indexInAvailable = allChapters.findIndex(ch => ch.index === chapterIndex);
+          if (indexInAvailable >= 0) {
+              targetPage = Math.floor(indexInAvailable / PAGE_SIZE);
+          }
+      }
+      
+      const pageData = await chapterManager.getChapterPage(this.name, targetPage, PAGE_SIZE);
+      
+      this.visibleChapters = pageData.chapters;
+      this.currentPage = pageData.currentPage;
+
+    } catch (error) {
+      prompt.showToast({ message: `章节列表加载失败` });
+      this.visibleChapters = [];
+      this.totalChapters = 0;
+      this.totalPages = 1;
+      this.currentPage = 0;
+      this.currentChapterIndex = -1;
+    } finally {
+      this.loading = false;
+    }
+  },
+
+  async loadPage(page) {
+    if (this.loading) return;
+    this.loading = true;
+    
+    try {
+      const result = await chapterManager.getChapterPage(this.name, page, PAGE_SIZE);
+      this.visibleChapters = result.chapters;
+      this.currentPage = result.currentPage;
+      this.totalPages = result.totalPages;
+      this.totalChapters = result.totalChapters;
+    } catch (error) {
+      prompt.showToast({ message: '加载失败' });
+    } finally {
+      this.loading = false;
+    }
+  },
+
+  prevPage() {
+    if (this.currentPage > 0 && !this.loading) {
+        this.loadPage(this.currentPage - 1);
+    }
+  },
+
+  nextPage() {
+    if (this.currentPage < this.totalPages - 1 && !this.loading) {
+        this.loadPage(this.currentPage + 1);
+    }
+  },
+
+  async selectChapter(chapter) {
+    if (this.longPressTriggered) {
+      return;
+    }
+
+    try {
+      let progress = await bookStorage.get(this.name);
+      progress.chapterIndex = chapter.index;
+      progress.offsetInChapter = 0;
+      progress.scrollOffset = 0;
+      await bookStorage.set(this.name, progress);
+
+      globalThis.justJumpedFromChapter = true;
+      globalThis.newChapterIndex = chapter.index;
+      globalThis.newChapterName = chapter.name;
+      router.back();
+    } catch (e) {
+      prompt.showToast({ message: '跳转失败', duration: 2000 });
+    }
+  },
+
+  deleteChapter(chapter) {
+    this.longPressTriggered = true;
+    
+    if (this.longPressTimeout) {
+      clearTimeout(this.longPressTimeout);
+    }
+    
+    this.longPressTimeout = setTimeout(() => {
+      this.longPressTriggered = false;
+      this.longPressTimeout = null;
+    }, 300);
+    
+    router.push({
+      uri: '/pages/confirm',
+      params: {
+        action: 'deleteChapter',
+        title: '删除章节',
+        confirmText: '确认删除章节文件吗?',
+        subText: chapter.name,
+        bookName: this.name,
+        chapterIndex: chapter.index,
+        chapterName: chapter.name
+      }
+    });
+  },
+
+  back() {
+    router.back();
+  }
+}
+</script>
+
+<style>
+  @import '../../common/style.css';
+.chapter-info {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  flex: 1;
+  width: 100%;
+}
+.itemtext-current {
+  color: #0D6EFF;
+}
+.pagination-container {
+    width: 100%;
+    height: 80px;
+    justify-content: center;
+    align-items: center;
+}
+.pagination-controls {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 8px;
+}
+.pagination-button {
+    width: 72px;
+    height: 72px;
+}
+.pagination-text {
+    font-size: 28px;
+    font-weight: bold;
+    color: white;
+}
+</style>

@@ -1,0 +1,96 @@
+<import name="number" src="../../components/number_choose/number_choose"></import>
+<template>
+  <div class="page" style="flex-direction: column;">
+	<list class="list">
+		<list-item class="page-title-item" type="title">
+			<text static class="page-title">
+				屏幕亮度
+			</text>
+		</list-item>
+		<list-item class="item" type="item" @click="toggleFollowSystem">
+			<text class="itemtext" static>跟随系统亮度</text>
+			<img static src="{{ followSystem ? '/common/images/Switch_ON.png' : '/common/images/Switch_OFF.png' }}" class="switch" />
+		</list-item>
+		<list-item show="{{!followSystem}}" style="height: 64px;" class="center" type="title">
+		  <text static class="page-title" style="font-size: 38px;color: #ffffff99;">
+			  阅读页亮度设置
+		  </text>
+	  </list-item>
+	</list>
+	
+	<number show="{{!followSystem}}" style="position: absolute; bottom: 56px; left: 112px;" max.static="255" min.static="20" step.static="1" unit.static="" value="{{brightnessValue}}" @change="change" name.static="自定义亮度">
+	</number>
+
+  <img static src="/common/images/set.png" @click="back()" class="header-more"/>
+  </div>
+</template>
+
+<script>
+import router from "@system.router";
+import storage from '../../utils/storage.js';
+import brightness from '@system.brightness';
+
+const BRIGHTNESS_KEY = "EBOOK_BRIGHTNESS";
+const FOLLOW_SYSTEM_KEY = "EBOOK_BRIGHTNESS_FOLLOW_SYSTEM";
+const DEFAULT_BRIGHTNESS = 128;
+
+export default {
+	private: {
+		brightnessValue: DEFAULT_BRIGHTNESS,
+		followSystem: true
+	},
+	onInit() {
+		storage.get({
+            key: FOLLOW_SYSTEM_KEY,
+            success: (data) => {
+                this.followSystem = data !== 'false';
+            },
+            fail: () => {
+                this.followSystem = true;
+            }
+        });
+
+		storage.get({
+			key: BRIGHTNESS_KEY,
+			success: (data) => {
+				if (data) {
+					this.brightnessValue = parseInt(data);
+				}
+			},
+		});
+	},
+    toggleFollowSystem() {
+        this.followSystem = !this.followSystem;
+        if (this.followSystem) {
+            brightness.setMode({ mode: 1 });
+            storage.set({
+                key: FOLLOW_SYSTEM_KEY,
+                value: 'true'
+            });
+        } else {
+            brightness.setMode({ mode: 0 });
+            brightness.setValue({ value: this.brightnessValue });
+            storage.set({
+                key: FOLLOW_SYSTEM_KEY,
+                value: 'false'
+            });
+        }
+    },
+	change(e) {
+		this.brightnessValue = e.detail.value;
+        brightness.setMode({ mode: 0 });
+        brightness.setValue({ value: this.brightnessValue });
+		storage.set({
+			key: BRIGHTNESS_KEY,
+			value: this.brightnessValue.toString(),
+		});
+	},
+	back() {
+		router.back();
+	}
+};
+</script>
+
+<style>
+  @import '../../common/style.css';
+</style>

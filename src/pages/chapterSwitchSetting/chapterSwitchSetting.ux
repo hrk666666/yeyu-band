@@ -1,0 +1,114 @@
+<import name="number" src="../../components/number_choose/number_choose"></import>
+<template>
+	<div class="page" style="flex-direction: column">
+        <list class="list">
+            <list-item class="page-title-item" type="title">
+                <text static class="page-title">
+                    翻章按钮
+                </text>
+            </list-item>
+            <list-item class="item" @click="toggleShowInfo" type="item">
+                <text class="itemtext" static>显示章节名称</text>
+                <img src="{{showChapterInfo ? '/common/images/Switch_ON.png' : '/common/images/Switch_OFF.png'}}" class="switch" />
+            </list-item>
+            <list-item style="height: 64px;" class="center" type="title">
+                <text static class="page-title" style="font-size: 38px;color: #ffffff99;">
+                    触发灵敏度
+                </text>
+            </list-item>
+            <list-item style="height: 92px;" type="item">
+                <number style="left: 80px;" max.static="200" min.static="0" step.static="5" unit.static="px" value="{{scrollSensitivity}}" @change="onSensitivityChange" name.static="触发灵敏度">
+                </number>
+            </list-item>
+            <list-item style="height: 92px;" class="center" type="title">
+                <text static class="page-title" style="font-size: 38px;color: #ffffff99;">
+                    按钮高度
+                </text>
+            </list-item>
+            <list-item style="height: 92px;" type="item">
+                <number style="left: 80px;" max.static="200" min.static="25" step.static="5" unit.static="px" value="{{buttonHeight}}" @change="onHeightChange" name.static="按钮高度">
+                </number>
+            </list-item>
+        </list>
+		<img static src="/common/images/set.png" @click="back()" class="header-more"/>
+	</div>
+</template>
+
+<script>
+import router from "@system.router";
+import storage from '../../utils/storage.js';
+
+const HEIGHT_STORAGE_KEY = "EBOOK_CHAPTER_SWITCH_HEIGHT";
+const SENSITIVITY_STORAGE_KEY = "EBOOK_CHAPTER_SWITCH_SENSITIVITY";
+const SHOW_INFO_STORAGE_KEY = "EBOOK_CHAPTER_SWITCH_SHOW_INFO";
+const DEFAULT_HEIGHT = 80;
+const DEFAULT_SENSITIVITY = 50;
+
+export default {
+	private: {
+		buttonHeight: DEFAULT_HEIGHT,
+		scrollSensitivity: DEFAULT_SENSITIVITY,
+        showChapterInfo: false
+	},
+    
+	onInit() {
+		storage.get({
+			key: HEIGHT_STORAGE_KEY,
+			success: (data) => {
+				if (data) {
+					this.buttonHeight = parseInt(data);
+				}
+			},
+		});
+		storage.get({
+			key: SENSITIVITY_STORAGE_KEY,
+			success: (data) => {
+				if (data) {
+					this.scrollSensitivity = parseInt(data);
+				}
+			},
+		});
+        storage.get({
+            key: SHOW_INFO_STORAGE_KEY,
+            success: (data) => {
+                this.showChapterInfo = data === 'true';
+            },
+            fail: () => {
+                this.showChapterInfo = false;
+            }
+        });
+	},
+
+	onHeightChange(e) {
+		this.buttonHeight = e.detail.value;
+		storage.set({
+			key: HEIGHT_STORAGE_KEY,
+			value: this.buttonHeight.toString(),
+		});
+	},
+
+	onSensitivityChange(e) {
+		this.scrollSensitivity = e.detail.value;
+		storage.set({
+			key: SENSITIVITY_STORAGE_KEY,
+			value: this.scrollSensitivity.toString(),
+		});
+	},
+
+    toggleShowInfo() {
+        this.showChapterInfo = !this.showChapterInfo;
+        storage.set({
+            key: SHOW_INFO_STORAGE_KEY,
+            value: this.showChapterInfo.toString()
+        });
+    },
+
+	back() {
+		router.back();
+	}
+};
+</script>
+
+<style>
+  @import '../../common/style.css';
+</style>

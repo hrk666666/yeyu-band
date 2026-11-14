@@ -1,0 +1,52 @@
+<import name="number" src="../../components/number_choose/number_choose"></import>
+<template>
+	<div class="page" style="flex-direction: column;">
+		<number style="top: 185px;left:32px;width: 416px;height: 110px;position: absolute;border-radius: 55px;" fontsize.static="38px" max.static="240" min.static="10" step.static="10" value="{{ chapterSwitchSensitivity }}" @change="change" name.static="调整灵敏度"></number>
+		
+		<text static class="page-title" style="position: absolute;font-size: 38px;color: #ffffff99;top: 334px;width: 100%;text-align: center;">
+			再次滑动的灵敏度
+		</text>
+	<img static src="/common/images/set.png" @click="back()" class="header-more"/>
+	<text static class="header-title">
+		越界翻章
+	</text>
+	</div>
+</template>
+
+<script>
+import router from '@system.router'
+import storage from '../../utils/storage.js'
+
+const SENSITIVITY_KEY = 'EBOOK_CHAPTER_SWITCH_SENSITIVITY';
+const DEFAULT_SENSITIVITY = 50;
+
+export default {
+	private: {
+		chapterSwitchSensitivity: DEFAULT_SENSITIVITY
+	},
+	onInit() {
+		storage.get({
+			key: SENSITIVITY_KEY,
+			success: (data) => {
+				if (data) {
+					this.chapterSwitchSensitivity = parseInt(data);
+				}
+			},
+		});
+	},
+	change(e) {
+		this.chapterSwitchSensitivity = e.detail.value;
+		storage.set({
+			key: SENSITIVITY_KEY,
+			value: this.chapterSwitchSensitivity.toString(),
+		});
+	},
+	back(){
+		router.back();
+	}
+}
+</script>
+
+<style>
+  @import '../../common/style.css';
+</style>

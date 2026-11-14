@@ -1,0 +1,96 @@
+<import name="number" src="../../components/number_choose/number_choose"></import>
+<template>
+  <div class="page" style="flex-direction: column;">
+	<list class="list">
+		<list-item class="page-title-item" type="title">
+			<text static class="page-title">
+				时间常驻
+			</text>
+		</list-item>
+		<list-item class="item" @click="onClick" type="item">
+      <text class="itemtext" static>始终显示时间</text>
+			<img src="{{alwaysShowTime ? '/common/images/Switch_ON.png' : '/common/images/Switch_OFF.png'}}" class="switch" />
+		</list-item>
+		<list-item if="{{alwaysShowTime && readMode !== 'nostalgic'}}" style="height: 64px;" class="center" type="title">
+		  <text static class="page-title" style="font-size: 38px;color: #ffffff99;">
+			  显示距离设置
+		  </text>
+		</list-item>
+	</list>
+	
+	<number if="{{alwaysShowTime && readMode !== 'nostalgic'}}" style="position: absolute; bottom: 56px; left: 112px;" max.static="500" min.static="0" step.static="10" value="{{distanceValue}}" @change="changeDistance" name.static="调整距离" unit="px"></number>
+
+  <img static src="/common/images/set.png" @click="back()" class="header-more"/>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import storage from '../../utils/storage.js'
+
+const DISTANCE_KEY = 'EBOOK_ALWAYS_SHOW_TIME_SENSITIVITY';
+const DEFAULT_DISTANCE = 200;
+
+export default {
+  private: {
+    alwaysShowTime: false,
+    distanceValue: DEFAULT_DISTANCE,
+	  readMode: 'scroll'
+  },
+  
+  onInit() {
+    storage.get({
+      key: 'EBOOK_ALWAYS_SHOW_TIME',
+      success: (data) => {
+        if (data) {
+          this.alwaysShowTime = data === 'true';
+        }
+      }
+    });
+    
+		storage.get({ 
+      key: 'EBOOK_READ_MODE', 
+      success: (data) => {
+			  if (data) this.readMode = data;
+		  }
+    });
+    
+    storage.get({
+      key: DISTANCE_KEY,
+      success: (data) => {
+        if (data) {
+          this.distanceValue = parseInt(data);
+        }
+      },
+    });
+  },
+
+  back(){
+    router.back();
+  },
+
+  save(){
+    storage.set({
+      key: 'EBOOK_ALWAYS_SHOW_TIME',
+      value: this.alwaysShowTime.toString()
+    });
+  },
+
+  onClick(){
+    this.alwaysShowTime = !this.alwaysShowTime;
+    this.save();
+  },
+
+  changeDistance(e) {
+    this.distanceValue = e.detail.value;
+    storage.set({
+      key: DISTANCE_KEY,
+      value: this.distanceValue.toString(),
+    });
+  }
+}
+</script>
+
+<style>
+  @import '../../common/style.css';
+</style>

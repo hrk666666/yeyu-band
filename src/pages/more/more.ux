@@ -1,0 +1,65 @@
+<template>
+	<div class="page" style="flex-direction: column;">
+		<list class="list">
+			<list-item class="page-title-item" type="title">
+				<text static class="page-title">
+					设置
+				</text>
+			</list-item>
+			<list-item class="item" @click="routerTo('readingSetting')" type="item">
+				<text class="itemtext" static>阅读设置</text>
+				<img src="/common/images/enter.png" class="arrow" static />
+			</list-item>
+			<list-item class="item" @click="routerTo('performanceSetting')" type="item">
+				<text class="itemtext" static>性能设置</text>
+				<img src="/common/images/enter.png" class="arrow" static/>
+			</list-item>
+			<list-item class="item" @click="routerTo('shelfSetting')" type="item">
+				<text class="itemtext" static>书架设置</text>
+				<img src="/common/images/enter.png" class="arrow" static/>
+			</list-item>
+			<list-item class="item" @click="routerTo('interactionSetting')" type="item">
+				<text class="itemtext" static>交互设置</text>
+				<img src="/common/images/enter.png" class="arrow" static/>
+			</list-item>
+			<list-item class="item" @click="routerTo('storageManagement')" type="item">
+				<text class="itemtext" static>存储管理</text>
+				<img src="/common/images/enter.png" class="arrow" static/>
+			</list-item>
+			<list-item class="item" @click="routerTo('push')" type="item">
+				<text class="itemtext" static>书籍同步</text>
+				<img src="/common/images/enter.png" class="arrow" static />
+			</list-item>
+			<list-item class="item" @click="routerTo('readingTime')" type="item">
+				<text class="itemtext" static>阅读时长</text>
+				<img src="/common/images/enter.png" class="arrow" static />
+			</list-item>
+			<list-item class="item" @click="routerTo('about')" type="item">
+				<text class="itemtext" static>关于</text>
+				<img src="/common/images/enter.png" class="arrow" static />
+			</list-item>
+		</list>
+
+		<img static src="/common/images/more2.png" @click="back()" class="header-more"/>
+	</div>
+</template>
+  
+<script>
+  import router from '@system.router'
+  
+  export default {
+	routerTo(url) {
+	  router.push({
+		uri: '/pages/' + url
+	  })
+	},
+  
+  	back(){
+		router.back();
+	}
+  }
+</script>
+  
+<style>
+  @import '../../common/style.css';
+</style>

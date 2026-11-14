@@ -1,0 +1,116 @@
+<template>
+  <div class="page" style="flex-direction: column;">
+    <img static class="item" if="{{state == 'wait' || state == 'ready'}}" src="../../common/images/push_wait.png" style="position: absolute;left: 0px;top: 0px;width : 100%;height: 100%;" />
+    <img static class="item" if="{{state == 'upload' && state2 == 'ing'}}" src="../../common/images/push_ing.png" style="position: absolute;left: 0px;top: 0px;width : 100%;height: 100%;" />
+    <img static class="item" if="{{state == 'upload' && state2 == 'error'}}" src="../../common/images/push_fail.png" style="position: absolute;left: 0px;top: 0px;width : 100%;height: 100%;" />
+    <img static class="item" if="{{state == 'upload' && state2 == 'succ'}}" src="../../common/images/push_succ.png" style="position: absolute;left: 0px;top: 0px;width : 100%;height: 100%;" />
+
+    <div static class="item" if="{{state == 'wait'}}" style="position: absolute; width: 416px; left: 32px;top: 185px;height: 110px;border-radius: 55px;justify-content: center;align-items: center;background-color: #262626b2;">
+      <text static style="text-align: center;font-weight:bold;font-size: 38px;">等待连接手机</text>
+    </div>
+    <div static class="item" if="{{state == 'ready'}}" style="position: absolute; width: 416px; left: 32px;top: 185px;height: 110px;border-radius: 55px;justify-content: center;align-items: center;background-color: #262626b2;">
+      <text static style="text-align: center;font-weight:bold;font-size: 38px;">等待传输书籍</text>
+    </div>
+    
+    <div class="item" if="{{state == 'upload'}}" style="position: absolute; width: 416px; left: 32px;top: 185px;height: 110px;border-radius: 55px;justify-content: center;align-items: center;background-color: #262626b2;">
+      <text style="font-size: 38px;font-weight:bold;color: {{textColor}};">正在传输</text>
+      <text style="font-size: 38px;font-weight:bold;color: {{percentColor}};left: 12px;">{{persent}}%</text>
+    </div>
+  </div>	
+</template>
+
+<script>
+import brightness from "@system.brightness"
+
+export default {
+  private: {
+      persent: 0,
+      state: 'wait',
+      state2: 'ing',
+      timer: null,
+      textColor: '',
+      percentColor: '#ffffff99'
+  },
+  
+  updateConnState() {
+    if (this.state === "upload") return;
+    const connected = !!(globalThis.conn && globalThis.conn.connected);
+    if (connected) {
+      this.state = "ready";
+    } else {
+      this.state = "wait";
+    }
+  },
+
+  onInit() {
+    this.timer = setInterval(() => {
+      this.updateConnState();
+    }, 1000);
+    this.updateConnState();
+
+    this.eventlistener = globalThis.conn.addEventListener((data) => {
+      if (data !== "open") {
+        if (this.state !== "upload") this.state = "wait";
+      }
+    });
+
+    globalThis.connfile.setCallback((data) => {
+      switch (data.msg) {
+        case "next":
+          this.state = "upload";
+          this.state2 = "ing";
+          this.persent = (data.progress * 100).toFixed(0);
+          this.textColor = '';
+          this.percentColor = '#ffffff99';
+          break;
+        case "error":
+          if (this.state === "upload") {
+            this.state2 = "error";
+            this.textColor = '#DD3636';
+            this.percentColor = '#DD3636';
+          } else {
+            this.updateConnState();
+          }
+          break;
+        case "success":
+          if (this.state === "upload") {
+            this.state2 = "succ";
+            this.textColor = '#1DCC72';
+            this.percentColor = '#1DCC72';
+          }
+          break;
+        case "cancel":
+          this.state = "ready";
+          break;
+        default:
+          break;
+      }
+    });
+  },
+
+  onShow() {
+    brightness.setKeepScreenOn({
+      keepScreenOn: true,
+    });
+    this.updateConnState();
+  },
+
+  onHide() {
+    brightness.setKeepScreenOn({
+      keepScreenOn: false,
+    });
+  },
+
+  onDestroy() {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    globalThis.conn.removeEventListener(this.eventlistener);
+  }
+}
+</script>
+
+<style>
+  @import '../../common/style.css';
+</style>
