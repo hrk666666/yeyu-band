@@ -1,10 +1,30 @@
 import interconnect from "@system.interconnect";
 
+// 模拟器（velasim）不提供 system.interconnect，直接 instance() 会抛异常并让整个
+// 应用启动失败。真机走原路径；仅在能力缺失时退化成本地空连接，界面照常渲染。
+function offlineConn() {
+    return {
+        onmessage: null,
+        onclose: null,
+        onerror: null,
+        onopen: null,
+        send({ fail } = {}) {
+            if (typeof fail === 'function') fail({ message: 'interconnect unavailable' });
+        },
+        getApkStatus() { return 0; },
+        close() { },
+    };
+}
+
 export default class interconn{
     callbacks = {};
     eventListeners = [];
     constructor() {
-        this.conn = interconnect.instance();
+        try {
+            this.conn = interconnect.instance();
+        } catch (e) {
+            this.conn = offlineConn();
+        }
         this.conn.onmessage = ({data}) => {
             const { tag, ...playload } = JSON.parse(data);
             this.callbacks[tag](playload);
