@@ -14,6 +14,34 @@ function clone(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
+// 书不在书架时补记录，优先用本地 book_info.json 里的真实书名，
+// 避免书架出现 8 位十六进制目录名或空白名。
+async function readLocalBookName(dirName) {
+    try {
+        const data = await runAsyncFunc(file.readText, {
+            uri: `internal://files/books/${dirName}/book_info.json`
+        });
+        const info = JSON.parse(data.text);
+        return typeof info.name === 'string' ? info.name.trim() : '';
+    } catch (e) {
+        return '';
+    }
+}
+
+function buildPlaceholderBook(dirName, name) {
+    return {
+        dirName: dirName,
+        name: name || dirName,
+        author: '',
+        summary: '',
+        category: '',
+        wordCount: 0,
+        totalChapters: 0,
+        progress: {},
+        addedAt: Date.now()
+    };
+}
+
 async function loadBookshelf() {
     if (global.__bookshelf_cache__) {
         return clone(global.__bookshelf_cache__);
@@ -65,48 +93,54 @@ async function get(bookDirName) {
 
 async function set(bookDirName, progressData) {
     const bookshelf = await loadBookshelf();
-    const bookIndex = bookshelf.books.findIndex(b => b.dirName === bookDirName);
+    let bookIndex = bookshelf.books.findIndex(b => b.dirName === bookDirName);
 
-    if (bookIndex !== -1) {
-        const book = bookshelf.books[bookIndex];
-        if (!book.progress) {
-            book.progress = {};
-        }
-
-        const { bookmarks, ...newProgress } = progressData;
-        const cleanProgress = {};
-
-        if (newProgress.chapterIndex != null) {
-            const cIdx = parseInt(newProgress.chapterIndex);
-            cleanProgress.chapterIndex = isNaN(cIdx) ? null : cIdx;
-        } else {
-            cleanProgress.chapterIndex = null;
-        }
-
-        let offset = 0;
-        const rawOffset = newProgress.offsetInChapter;
-        if (typeof rawOffset === 'number') {
-            offset = Math.max(0, Math.floor(rawOffset));
-        } else if (typeof rawOffset === 'string') {
-            const parsed = parseInt(rawOffset, 10);
-            offset = isNaN(parsed) ? 0 : Math.max(0, parsed);
-        }
-        if (offset % 2 === 1) offset = Math.max(0, offset - 1);
-        cleanProgress.offsetInChapter = offset;
-
-        cleanProgress.scrollOffset = typeof newProgress.scrollOffset === 'number'
-            ? Math.max(0, Math.floor(newProgress.scrollOffset))
-            : 0;
-
-        Object.keys(newProgress).forEach(key => {
-            if (!['chapterIndex', 'offsetInChapter', 'scrollOffset'].includes(key)) {
-                cleanProgress[key] = newProgress[key];
-            }
-        });
-
-        Object.assign(book.progress, cleanProgress);
-        await saveBookshelf(bookshelf);
+    // 书不在手环书架时不再静默丢弃：同步的书双端都必须添加到书架，
+    // 自动补一条最小记录（书名取目录名），进度写入不再丢失。
+    if (bookIndex === -1) {
+        const localName = await readLocalBookName(bookDirName);
+        bookshelf.books.push(buildPlaceholderBook(bookDirName, localName));
+        bookIndex = bookshelf.books.length - 1;
     }
+
+    const book = bookshelf.books[bookIndex];
+    if (!book.progress) {
+        book.progress = {};
+    }
+
+    const { bookmarks, ...newProgress } = progressData;
+    const cleanProgress = {};
+
+    if (newProgress.chapterIndex != null) {
+        const cIdx = parseInt(newProgress.chapterIndex);
+        cleanProgress.chapterIndex = isNaN(cIdx) ? null : cIdx;
+    } else {
+        cleanProgress.chapterIndex = null;
+    }
+
+    let offset = 0;
+    const rawOffset = newProgress.offsetInChapter;
+    if (typeof rawOffset === 'number') {
+        offset = Math.max(0, Math.floor(rawOffset));
+    } else if (typeof rawOffset === 'string') {
+        const parsed = parseInt(rawOffset, 10);
+        offset = isNaN(parsed) ? 0 : Math.max(0, parsed);
+    }
+    if (offset % 2 === 1) offset = Math.max(0, offset - 1);
+    cleanProgress.offsetInChapter = offset;
+
+    cleanProgress.scrollOffset = typeof newProgress.scrollOffset === 'number'
+        ? Math.max(0, Math.floor(newProgress.scrollOffset))
+        : 0;
+
+    Object.keys(newProgress).forEach(key => {
+        if (!['chapterIndex', 'offsetInChapter', 'scrollOffset'].includes(key)) {
+            cleanProgress[key] = newProgress[key];
+        }
+    });
+
+    Object.assign(book.progress, cleanProgress);
+    await saveBookshelf(bookshelf);
 }
 
 async function getBookmarks(bookDirName) {
@@ -117,18 +151,23 @@ async function getBookmarks(bookDirName) {
 
 async function setBookmarks(bookDirName, bookmarks) {
     const bookshelf = await loadBookshelf();
-    const bookIndex = bookshelf.books?.findIndex(b => b.dirName === bookDirName);
+    let bookIndex = bookshelf.books?.findIndex(b => b.dirName === bookDirName);
 
-    if (bookIndex !== -1) {
-        const book = bookshelf.books[bookIndex];
-        if (!book.progress) {
-            book.progress = {};
-        }
-        book.progress.bookmarks = clone(bookmarks);
-        book.progress.lastReadTimestamp = Date.now();
-        
-        await saveBookshelf(bookshelf);
+    // 与 set() 同一策略：书不在书架时补一条最小记录，书签不再丢失。
+    if (bookIndex === -1) {
+        const localName = await readLocalBookName(bookDirName);
+        bookshelf.books.push(buildPlaceholderBook(bookDirName, localName));
+        bookIndex = bookshelf.books.length - 1;
     }
+
+    const book = bookshelf.books[bookIndex];
+    if (!book.progress) {
+        book.progress = {};
+    }
+    book.progress.bookmarks = clone(bookmarks);
+    book.progress.lastReadTimestamp = Date.now();
+
+    await saveBookshelf(bookshelf);
 }
 
 async function getBooks() {
