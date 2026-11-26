@@ -1,8 +1,8 @@
 {
   "package": "com.yeyu.reader",
   "name": "页屿",
-  "versionName": "V26.6.1.p67",
-  "versionCode": 260601,
+  "versionName": "V26.6.3.p67",
+  "versionCode": 260603,
   "minPlatformVersion": 1100,
   "icon": "/common/logo.png",
   "simulationVersion": "default",
